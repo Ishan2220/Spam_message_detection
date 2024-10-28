@@ -1,0 +1,67 @@
+# Import required libraries
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.metrics import accuracy_score, precision_score, recall_score, confusion_matrix, ConfusionMatrixDisplay, roc_curve, roc_auc_score, precision_recall_curve
+import matplotlib.pyplot as plt
+
+# Load the dataset
+url = "/content/SMSSpamCollection"
+data = pd.read_csv(url, sep='\t', names=['label', 'message'])
+
+# Encode labels as binary (spam = 1, ham = 0)
+data['label'] = data['label'].map({'spam': 1, 'ham': 0})
+
+# Split data into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(data['message'], data['label'], test_size=0.2, random_state=42)
+
+# Convert text data into numerical data using Count Vectorizer
+vectorizer = CountVectorizer(stop_words='english')
+X_train_counts = vectorizer.fit_transform(X_train)
+X_test_counts = vectorizer.transform(X_test)
+
+# Initialize and train the Naive Bayes classifier
+nb_classifier = MultinomialNB()
+nb_classifier.fit(X_train_counts, y_train)
+
+# Predict on test data
+y_pred = nb_classifier.predict(X_test_counts)
+y_pred_proba = nb_classifier.predict_proba(X_test_counts)[:, 1]  # Probability scores for ROC/PR curves
+
+# Evaluate the model
+accuracy = accuracy_score(y_test, y_pred)
+precision = precision_score(y_test, y_pred)
+recall = recall_score(y_test, y_pred)
+
+print(f"Accuracy: {accuracy * 100:.2f}%")
+print(f"Precision: {precision * 100:.2f}%")
+print(f"Recall: {recall * 100:.2f}%")
+
+# Confusion Matrix
+conf_matrix = confusion_matrix(y_test, y_pred)
+ConfusionMatrixDisplay(conf_matrix, display_labels=['Ham', 'Spam']).plot(cmap='Blues')
+plt.title("Confusion Matrix")
+plt.show()
+
+# Precision-Recall Curve
+precision_vals, recall_vals, thresholds_pr = precision_recall_curve(y_test, y_pred_proba)
+plt.figure()
+plt.plot(recall_vals, precision_vals, marker='.', color='b', label='Naive Bayes')
+plt.xlabel('Recall')
+plt.ylabel('Precision')
+plt.title('Precision-Recall Curve')
+plt.legend()
+plt.show()
+
+# ROC Curve
+fpr, tpr, thresholds_roc = roc_curve(y_test, y_pred_proba)
+roc_auc = roc_auc_score(y_test, y_pred_proba)
+plt.figure()
+plt.plot(fpr, tpr, color='darkorange', label=f'ROC Curve (AUC = {roc_auc:.2f})')
+plt.plot([0, 1], [0, 1], color='gray', linestyle='--')
+plt.xlabel('False Positive Rate')
+plt.ylabel('True Positive Rate')
+plt.title('ROC Curve')
+plt.legend(loc='lower right')
+plt.show()
